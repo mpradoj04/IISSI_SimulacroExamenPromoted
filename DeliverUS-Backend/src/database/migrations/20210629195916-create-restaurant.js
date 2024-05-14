@@ -86,6 +86,11 @@ module.exports = {
           },
           key: 'id'
         }
+      },
+      promoted: {
+        allowNull: false,
+        type: Sequelize.BOOLEAN,
+        defaultValue: false
       }
     })
   },
