@@ -33,7 +33,7 @@ const checkNoRestaurantPromoted = async (req, res, next) => {
         promoted: true
       }
     })
-    if (promotedRes && req.body.promoted === true) {
+    if (promotedRes !== null) {
       return res.status(422).send('There is already a promoted restaurant')
     } else {
       return next()

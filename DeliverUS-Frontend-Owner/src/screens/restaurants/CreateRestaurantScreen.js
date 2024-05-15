@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react'
-import { Image, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { Image, Platform, Pressable, ScrollView, StyleSheet, View, Switch } from 'react-native'
 import * as ExpoImagePicker from 'expo-image-picker'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import * as yup from 'yup'
 import DropDownPicker from 'react-native-dropdown-picker'
-import { create, getRestaurantCategories } from '../../api/RestaurantEndpoints'
+import { create, getRestaurantCategories, getAnyPromoted } from '../../api/RestaurantEndpoints'
 import InputItem from '../../components/InputItem'
 import TextRegular from '../../components/TextRegular'
 import * as GlobalStyles from '../../styles/GlobalStyles'
@@ -14,12 +14,13 @@ import { showMessage } from 'react-native-flash-message'
 import { ErrorMessage, Formik } from 'formik'
 import TextError from '../../components/TextError'
 
-export default function CreateRestaurantScreen ({ navigation }) {
+export default function CreateRestaurantScreen ({ navigation, route }) {
   const [open, setOpen] = useState(false)
   const [restaurantCategories, setRestaurantCategories] = useState([])
   const [backendErrors, setBackendErrors] = useState()
+  const [anyPromoted, setAnyPromoted] = useState()
 
-  const initialRestaurantValues = { name: null, description: null, address: null, postalCode: null, url: null, shippingCosts: null, email: null, phone: null, restaurantCategoryId: null }
+  const initialRestaurantValues = { name: null, description: null, address: null, postalCode: null, url: null, shippingCosts: null, email: null, phone: null, restaurantCategoryId: null, promoted: null }
   const validationSchema = yup.object().shape({
     name: yup
       .string()
@@ -53,7 +54,11 @@ export default function CreateRestaurantScreen ({ navigation }) {
       .number()
       .positive()
       .integer()
-      .required('Restaurant category is required')
+      .required('Restaurant category is required'),
+    promoted: yup
+      .boolean()
+      .required()
+      .oneOf([false, anyPromoted === null], 'There is already one of your restaurants promoted')
   })
 
   useEffect(() => {
@@ -77,6 +82,18 @@ export default function CreateRestaurantScreen ({ navigation }) {
       }
     }
     fetchRestaurantCategories()
+  }, [])
+
+  useEffect(() => {
+    async function fetchAnyPromoted () {
+      try {
+        const restaurantPromoted = await getAnyPromoted()
+        setAnyPromoted(restaurantPromoted)
+      } catch (error) {
+        console.log(error)
+      }
+    }
+    fetchAnyPromoted()
   }, [])
 
   useEffect(() => {
@@ -116,6 +133,12 @@ export default function CreateRestaurantScreen ({ navigation }) {
       })
       navigation.navigate('RestaurantsScreen', { dirty: true })
     } catch (error) {
+      showMessage({
+        message: `There was an error while creating restaurant. ${error}`,
+        type: 'error',
+        style: GlobalStyles.flashStyle,
+        titleStyle: GlobalStyles.flashTextStyle
+      })
       console.log(error)
       setBackendErrors(error.errors)
     }
@@ -203,6 +226,19 @@ export default function CreateRestaurantScreen ({ navigation }) {
                 <TextRegular>Hero image: </TextRegular>
                 <Image style={styles.image} source={values.heroImage ? { uri: values.heroImage.assets[0].uri } : restaurantBackground} />
               </Pressable>
+
+              <TextRegular>Is it promoted?</TextRegular>
+              <Switch
+                trackColor={{ false: GlobalStyles.brandSecondary, true: GlobalStyles.brandPrimary }}
+                thumbColor={values.availability ? GlobalStyles.brandSecondary : '#f4f3f4'}
+                // onValueChange={toggleSwitch}
+                value={values.promoted}
+                style={styles.switch}
+                onValueChange={value =>
+                  setFieldValue('promoted', value)
+                }
+              />
+              <ErrorMessage name={'promoted'} render={msg => <TextError>{msg}</TextError> }/>
 
               {backendErrors &&
                 backendErrors.map((error, index) => <TextError key={index}>{error.param}-{error.msg}</TextError>)

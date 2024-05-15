@@ -38,6 +38,30 @@ const indexOwner = async function (req, res) {
   }
 }
 
+const fetchPromoted = async function (req) {
+  try {
+    return await Restaurant.findOne(
+      {
+        where: {
+          userId: req.user.id,
+          promoted: true
+        }
+      }
+    )
+  } catch (err) {
+    console.log(err)
+  }
+}
+
+const indexPromoted = async function (req, res) {
+  try {
+    const resturant = await fetchPromoted(req)
+    res.json(resturant)
+  } catch (err) {
+    res.status(500).send(err)
+  }
+}
+
 const create = async function (req, res) {
   const newRestaurant = Restaurant.build(req.body)
   newRestaurant.userId = req.user.id // usuario actualmente autenticado
@@ -97,8 +121,9 @@ const destroy = async function (req, res) {
   }
 }
 
-const patch = async function (req, res) {
+const promote = async function (req, res) {
   try {
+    console.log('HOLA')
     await Restaurant.update({ promoted: true }, { where: { id: req.params.restaurantId } })
     const updatedRestaurant = await Restaurant.findByPk(req.params.restaurantId)
     res.json(updatedRestaurant)
@@ -107,13 +132,29 @@ const patch = async function (req, res) {
   }
 }
 
+const depromote = async function (req, res) {
+  try {
+    const restaurantToDepromote = await fetchPromoted(req)
+    if (restaurantToDepromote === null) {
+      res.json()
+      return
+    }
+    await Restaurant.update({ promoted: false }, { where: { id: restaurantToDepromote.id } })
+    res.json(await Restaurant.findByPk(restaurantToDepromote.id))
+  } catch (err) {
+    res.status(500).send(err)
+  }
+}
+
 const RestaurantController = {
   index,
   indexOwner,
+  indexPromoted,
   create,
   show,
   update,
   destroy,
-  patch
+  promote,
+  depromote
 }
 export default RestaurantController

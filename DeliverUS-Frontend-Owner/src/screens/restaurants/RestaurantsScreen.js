@@ -2,7 +2,7 @@
 import React, { useContext, useEffect, useState } from 'react'
 import { StyleSheet, FlatList, Pressable, View } from 'react-native'
 
-import { getAll, remove } from '../../api/RestaurantEndpoints'
+import { getAll, remove, promote, update, depromote } from '../../api/RestaurantEndpoints'
 import ImageCard from '../../components/ImageCard'
 import TextSemiBold from '../../components/TextSemibold'
 import TextRegular from '../../components/TextRegular'
@@ -11,11 +11,13 @@ import * as GlobalStyles from '../../styles/GlobalStyles'
 import { AuthorizationContext } from '../../context/AuthorizationContext'
 import { showMessage } from 'react-native-flash-message'
 import DeleteModal from '../../components/DeleteModal'
+import ConfirmationModal from '../../components/ConfirmationModal'
 import restaurantLogo from '../../../assets/restaurantLogo.jpeg'
 
 export default function RestaurantsScreen ({ navigation, route }) {
   const [restaurants, setRestaurants] = useState([])
   const [restaurantToBeDeleted, setRestaurantToBeDeleted] = useState(null)
+  const [restaurantToBePromoted, setRestaurantToBePromoted] = useState(null)
   const { loggedInUser } = useContext(AuthorizationContext)
 
   useEffect(() => {
@@ -25,6 +27,19 @@ export default function RestaurantsScreen ({ navigation, route }) {
       setRestaurants(null)
     }
   }, [loggedInUser, route])
+
+  const promoteButton = async (item) => {
+    try {
+      if (item.promoted) {
+        await depromote()
+        await fetchRestaurants()
+      } else {
+        setRestaurantToBePromoted(item)
+      }
+    } catch (error) {
+      console.log(error)
+    }
+  }
 
   const renderRestaurant = ({ item }) => {
     return (
@@ -39,7 +54,13 @@ export default function RestaurantsScreen ({ navigation, route }) {
         {item.averageServiceMinutes !== null &&
           <TextSemiBold>Avg. service time: <TextSemiBold textStyle={{ color: GlobalStyles.brandPrimary }}>{item.averageServiceMinutes} min.</TextSemiBold></TextSemiBold>
         }
-        <TextSemiBold>Shipping: <TextSemiBold textStyle={{ color: GlobalStyles.brandPrimary }}>{item.shippingCosts.toFixed(2)}€</TextSemiBold></TextSemiBold>
+        <View style={styles.containerText}>
+        <TextSemiBold style={{ flex: 1 }}>Shipping: <TextSemiBold textStyle={{ color: GlobalStyles.brandPrimary }}>{item.shippingCosts.toFixed(2)}€</TextSemiBold></TextSemiBold>
+        {item.promoted === true
+          ? <TextSemiBold style={{ flex: 1 }}>In promotion!</TextSemiBold>
+          : <TextSemiBold></TextSemiBold>
+        }
+        </View>
         <View style={styles.actionButtonsContainer}>
           <Pressable
             onPress={() => navigation.navigate('EditRestaurantScreen', { id: item.id })
@@ -75,6 +96,25 @@ export default function RestaurantsScreen ({ navigation, route }) {
             <TextRegular textStyle={styles.text}>
               Delete
             </TextRegular>
+          </View>
+        </Pressable>
+
+        <Pressable
+            onPress={() => { promoteButton(item) }}
+            style={({ pressed }) => [
+              {
+                backgroundColor: pressed
+                  ? GlobalStyles.brandSuccessTap
+                  : GlobalStyles.brandSuccess
+              },
+              styles.actionButton
+            ]}>
+          <View style={[{ flex: 1, flexDirection: 'row', justifyContent: 'center' }]}>
+            <MaterialCommunityIcons name='star' color={'white'} size={20}/>
+              {item.promoted
+                ? <TextRegular textStyle={styles.text}>Depromote </TextRegular>
+                : <TextRegular textStyle={styles.text}>Promote </TextRegular>
+              }
           </View>
         </Pressable>
         </View>
@@ -130,6 +170,28 @@ export default function RestaurantsScreen ({ navigation, route }) {
     }
   }
 
+  const promoteRestaurant = async (restaurant) => {
+    try {
+      await depromote()
+      await promote(restaurant.id)
+      setRestaurantToBePromoted(null)
+      await fetchRestaurants()
+      showMessage({
+        message: `Restaurant ${restaurant.name} succesfully promoted`,
+        type: 'success',
+        style: GlobalStyles.flashStyle,
+        titleStyle: GlobalStyles.flashTextStyle
+      })
+    } catch (error) {
+      showMessage({
+        message: `Restaurant ${restaurant.name} could not be promoted.`,
+        type: 'error',
+        style: GlobalStyles.flashStyle,
+        titleStyle: GlobalStyles.flashTextStyle
+      })
+    }
+  }
+
   const removeRestaurant = async (restaurant) => {
     try {
       await remove(restaurant.id)
@@ -170,6 +232,13 @@ export default function RestaurantsScreen ({ navigation, route }) {
         <TextRegular>The products of this restaurant will be deleted as well</TextRegular>
         <TextRegular>If the restaurant has orders, it cannot be deleted.</TextRegular>
     </DeleteModal>
+    <ConfirmationModal
+    isVisible={restaurantToBePromoted !== null}
+    onCancel={() => setRestaurantToBePromoted(null)}
+    onConfirm={() => {
+      promoteRestaurant(restaurantToBePromoted)
+    }}>
+    </ConfirmationModal>
     </>
   )
 }
@@ -177,6 +246,10 @@ export default function RestaurantsScreen ({ navigation, route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1
+  },
+  containerText: {
+    flexDirection: 'row',
+    alignItems: 'flex-start'
   },
   button: {
     borderRadius: 8,
@@ -195,7 +268,7 @@ const styles = StyleSheet.create({
     padding: 10,
     alignSelf: 'center',
     flexDirection: 'column',
-    width: '50%'
+    flex: 1
   },
   actionButtonsContainer: {
     flexDirection: 'row',

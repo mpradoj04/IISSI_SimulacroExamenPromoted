@@ -1,4 +1,4 @@
-import { get, post, put, destroy } from './helpers/ApiRequestsHelper'
+import { get, post, put, destroy, patch } from './helpers/ApiRequestsHelper'
 function getAll () {
   return get('users/myrestaurants')
 }
@@ -9,6 +9,10 @@ function getDetail (id) {
 
 function getRestaurantCategories () {
   return get('restaurantCategories')
+}
+
+function getAnyPromoted () {
+  return get('restaurants/promoted')
 }
 
 function create (data) {
@@ -23,4 +27,12 @@ function remove (id) {
   return destroy(`restaurants/${id}`)
 }
 
-export { getAll, getDetail, getRestaurantCategories, create, update, remove }
+function promote (id) {
+  return patch(`restaurants/${id}/promote`)
+}
+
+function depromote () {
+  return patch('restaurants/depromote')
+}
+
+export { getAll, getDetail, getRestaurantCategories, create, update, remove, promote, depromote, getAnyPromoted }
